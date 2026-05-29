@@ -18,14 +18,11 @@ def load_data():
     df = df.dropna(subset=['publishedAt', 'trending_date'])
     df['publish_day'] = df['publishedAt'].dt.day_name()
     df['publish_hour'] = df['publishedAt'].dt.hour
-    df['days_to_trend'] = (df['trending_date'] - df['publishedAt']).dt.days   
+    df['days_to_trend'] = (df['trending_date'] - df['publishedAt']).dt.days
     df.loc[df['days_to_trend'] < 0, 'days_to_trend'] = 0
-    
     return df
-
 with pd_st.spinner('Оптимизация и загрузка датасета YouTube (238k+ строк)...'):
     df = load_data()
-    
     if 'video_id' in df.columns:
         df_unique = df.drop_duplicates(subset='video_id', keep='last')
     else:
@@ -59,10 +56,9 @@ fig_channels = px.bar(
     color_continuous_scale='Viridis'
 )
 fig_channels.update_layout(yaxis={'categoryorder':'total ascending'})
-
 pd_st.plotly_chart(fig_channels, width='stretch')
 
-# --- ГЛУБОКАЯ СТАТИСТИКА ---
+# --- ГЛУБОКАЯ СТАТИСТИКА И КОРРЕЛЯЦИИ ---
 pd_st.header("🔍 Углубленный анализ взаимосвязей")
 
 tab1, tab2, tab3 = pd_st.tabs(["Просмотры vs Лайки", "Активность по часам", "Скорость попадания в тренды"])
@@ -113,7 +109,7 @@ with tab3:
     )
     pd_st.plotly_chart(fig_days, width='stretch')
 
-# --- ПРОСМОТР ДАННЫХ ---
+# --- ПРОСМОТР САМИХ ДАННЫХ ---
 pd_st.header("📋 Проводник по данным")
 if pd_st.checkbox("Показать интерактивную таблицу с данными"):
     search_query = pd_st.text_input("Поиск по названию видео или канала:")
@@ -121,3 +117,73 @@ if pd_st.checkbox("Показать интерактивную таблицу с
     if search_query:
         df_display = df_display[df_display['title'].str.contains(search_query, case=False, na=False) | df_display['channelTitle'].str.contains(search_query, case=False, na=False)]
     pd_st.dataframe(df_display.head(100), width='stretch')
+
+# --- ЭКСПОРТ ---
+pd_st.markdown("---")
+pd_st.header("💾 Экспорт отчёта")
+
+import plotly.io as pio
+from datetime import datetime
+
+fig_channels_html = pio.to_html(fig_channels, full_html=False, include_plotlyjs=True)
+fig_scatter_html = pio.to_html(fig_scatter, full_html=False, include_plotlyjs=False)
+fig_hours_html = pio.to_html(fig_hours, full_html=False, include_plotlyjs=False)
+fig_days_html = pio.to_html(fig_days, full_html=False, include_plotlyjs=False)
+
+html_export = f"""<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>YouTube Trending Analytics — Экспорт {datetime.now().strftime('%Y-%m-%d %H:%M')}</title>
+<style>
+  body {{ font-family: sans-serif; background: #0e1117; color: #fafafa; margin: 0; padding: 20px; }}
+  h1 {{ color: #ff4b4b; }}
+  h2 {{ color: #fafafa; border-bottom: 1px solid #333; padding-bottom: 8px; margin-top: 40px; }}
+  .subtitle {{ color: #aaa; margin-bottom: 30px; }}
+  .metrics {{ display: flex; gap: 20px; flex-wrap: wrap; margin: 20px 0; }}
+  .metric {{ background: #1e1e2e; border-radius: 8px; padding: 20px 30px; flex: 1; min-width: 150px; }}
+  .metric-label {{ font-size: 13px; color: #aaa; margin-bottom: 6px; }}
+  .metric-value {{ font-size: 28px; font-weight: bold; color: #ff4b4b; }}
+  .chart {{ background: #1e1e2e; border-radius: 8px; padding: 10px; margin: 20px 0; }}
+  .filter-badge {{ display: inline-block; background: #333; border-radius: 4px; padding: 3px 10px; font-size: 12px; color: #aaa; margin-bottom: 10px; }}
+  .footer {{ text-align: center; color: #555; margin-top: 60px; font-size: 12px; border-top: 1px solid #222; padding-top: 20px; }}
+</style>
+</head>
+<body>
+<h1>📊 Интерактивный анализ трендов YouTube (RU)</h1>
+<p class="subtitle">Экспорт от {datetime.now().strftime('%d.%m.%Y %H:%M')} &nbsp;·&nbsp; Выборка: {sample_size:,} видео &nbsp;·&nbsp; Топ каналов: {top_n}</p>
+
+<h2>📈 Общие показатели датасета</h2>
+<div class="metrics">
+  <div class="metric"><div class="metric-label">Всего записей в трендах</div><div class="metric-value">{df.shape[0]:,}</div></div>
+  <div class="metric"><div class="metric-label">Уникальных видеороликов</div><div class="metric-value">{df_unique.shape[0]:,}</div></div>
+  <div class="metric"><div class="metric-label">Всего уникальных каналов</div><div class="metric-value">{df_unique['channelTitle'].nunique():,}</div></div>
+  <div class="metric"><div class="metric-label">Максимум просмотров на видео</div><div class="metric-value">{df_unique['view_count'].max():,}</div></div>
+</div>
+
+<h2>🏆 Рейтинги каналов</h2>
+<div class="filter-badge">Топ-{top_n} каналов</div>
+<div class="chart">{fig_channels_html}</div>
+
+<h2>🔍 Просмотры vs Лайки</h2>
+<div class="filter-badge">Выборка: {sample_size:,} видео</div>
+<div class="chart">{fig_scatter_html}</div>
+
+<h2>🕐 Активность по часам публикации</h2>
+<div class="chart">{fig_hours_html}</div>
+
+<h2>⚡ Скорость попадания в тренды</h2>
+<div class="chart">{fig_days_html}</div>
+
+<div class="footer">YouTube Trending Analytics &nbsp;·&nbsp; Сгенерировано {datetime.now().strftime('%d.%m.%Y %H:%M')}</div>
+</body>
+</html>"""
+
+pd_st.download_button(
+    label="📥 Скачать страницу как index.html",
+    data=html_export,
+    file_name="index.html",
+    mime="text/html",
+    use_container_width=True
+)
