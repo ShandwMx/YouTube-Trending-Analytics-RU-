@@ -9,7 +9,7 @@ pip install streamlit pandas plotly
 ## Запуск
 
 ```bash
-streamlit run main.py
+python3 -m streamlit run main.py
 ```
 
 Откроется в браузере: http://localhost:8501
