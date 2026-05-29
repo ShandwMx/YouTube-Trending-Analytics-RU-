@@ -1,1 +1,20 @@
-# YouTube-Trending-Analytics-RU-
+# YouTube Trending Analytics (RU)
+
+## Установка
+
+```bash
+pip install streamlit pandas plotly
+```
+
+## Запуск
+
+```bash
+streamlit run main.py
+```
+
+Откроется в браузере: http://localhost:8501
+
+## Данные
+
+Файл `RU_youtube_trending_data.csv` должен лежать рядом с `main.py`.
+Сам файл берём с 'https://www.kaggle.com/datasets/rsrishav/youtube-trending-video-dataset?select=RU_youtube_trending_data.csv' для актуальности информации
